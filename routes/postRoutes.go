@@ -1,35 +1,44 @@
 package routes
 
 import (
-	"log"
-
 	"github.com/Rajanhub/goapi/controllers"
+	"github.com/Rajanhub/goapi/infrastructure"
 	"github.com/Rajanhub/goapi/lib"
+	"github.com/Rajanhub/goapi/middlewares"
 )
 
 // PostRoutes struct
 type PostRoutes struct {
-	handler        lib.RequestHandler
+	logger         lib.Logger
+	handler        infrastructure.Router
 	postController controllers.PostController
-}
-
-// Setup post routes
-func (s PostRoutes) Setup() {
-	log.Println("Setting up routes")
-	api := s.handler.Gin
-	api.POST("/post", s.postController.SavePost)
-	api.GET("/post", s.postController.GetPost)
-
+	authMiddleware middlewares.FirebaseAuthMiddleware
 }
 
 // NewPostRoutes creates new post controller
 func NewPostRoutes(
-	handler lib.RequestHandler,
+	logger lib.Logger,
+	router infrastructure.Router,
 	postController controllers.PostController,
+	authMiddleware middlewares.FirebaseAuthMiddleware,
 
 ) PostRoutes {
 	return PostRoutes{
-		handler:        handler,
+		logger:         logger,
+		handler:        router,
 		postController: postController,
+		authMiddleware: authMiddleware,
 	}
+}
+
+// Setup post routes
+func (s PostRoutes) Setup() {
+	s.logger.Info("Setting up routes")
+	api := s.handler.Group("/api") //.Use(s.authMiddleware.HandleAuthWithRole(constants.RoleIsAdmin))
+	api.POST("/post", s.postController.SavePost)
+	api.GET("/post", s.postController.GetPost)
+	api.GET("/post/:id", s.postController.GetOnePost)
+	api.PUT("/post/:id", s.postController.UpdatePost)
+	api.DELETE("/post/:id", s.postController.DeletePost)
+
 }

@@ -1,8 +1,21 @@
 package routes
 
-import "go.uber.org/fx"
+type Route interface {
+	Setup()
+}
 
-// Module exports dependency to container
-var Module = fx.Options(
-	fx.Provide(NewPostRoutes),
-)
+type Routes interface {
+	Setup()
+}
+
+type routes []Route
+
+func NewRoutes(postRoutes PostRoutes, userRoutes UserRoutes) Routes {
+	return routes{postRoutes, userRoutes}
+}
+
+func (r routes) Setup() {
+	for _, route := range r {
+		route.Setup()
+	}
+}

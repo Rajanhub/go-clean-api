@@ -1,0 +1,21 @@
+package utils
+
+import (
+	"log"
+
+	"github.com/Rajanhub/goapi/constants"
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
+)
+
+func Paginate(c *gin.Context) func(db *gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		limit, _ := c.MustGet(constants.Limit).(int64)
+		page, _ := c.MustGet(constants.Page).(int64)
+
+		offset := (page - 1) * limit
+		log.Println(limit, page, offset)
+
+		return db.Offset(int(offset)).Limit(int(limit))
+	}
+}

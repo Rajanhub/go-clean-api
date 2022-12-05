@@ -5,7 +5,6 @@ import (
 	"log"
 
 	"github.com/Rajanhub/goapi/lib"
-	"github.com/Rajanhub/goapi/models"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -16,7 +15,7 @@ type Database struct {
 }
 
 // NewDatabase creates a new database instance
-func NewDatabase(env *lib.Env) Database {
+func NewDatabase(logger lib.Logger, env *lib.Env) Database {
 
 	username := env.DBUsername
 	password := env.DBPassword
@@ -24,17 +23,39 @@ func NewDatabase(env *lib.Env) Database {
 	port := env.DBPort
 	dbname := env.DBName
 
-	url := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8&parseTime=True&loc=Local", username, password, host, port, dbname)
+	url := fmt.Sprintf("%s:%s@tcp(%s:%s)/?charset=utf8&parseTime=True&loc=Local", username, password, host, port)
 
-	db, err := gorm.Open(mysql.Open(url), &gorm.Config{})
+	logger.Info("opening db connection")
+	db, err := gorm.Open(mysql.Open(url), &gorm.Config{Logger: logger.GetGormLogger()})
 
 	if err != nil {
-		log.Println("Url: ", url)
-		log.Panic(err)
+		logger.Info("Url: ", url)
+		logger.Panic(err)
+	}
+	logger.Info("creating database if it does't exist")
+	if err = db.Exec("CREATE DATABASE IF NOT EXISTS " + dbname).Error; err != nil {
+		logger.Info("couldn't create database")
+		logger.Panic(err)
+	}
+	logger.Info("using given database")
+	if err := db.Exec(fmt.Sprintf("USE %s", dbname)).Error; err != nil {
+		logger.Info("cannot use the given database")
+		logger.Panic(err)
 	}
 
-	log.Println("Database connection established")
-	db.AutoMigrate(&models.Post{})
+	logger.Info("database connection established")
+
+	database := Database{
+		DB: db,
+	}
+
+	err = RunMigration(logger, database)
+	//db.AutoMigrate(&models.Post{})
+	if err != nil {
+		log.Println(err.Error())
+		logger.Error(err)
+	}
+	logger.Info("currentDatabase:", db.Migrator().CurrentDatabase())
 
 	return Database{
 		DB: db,
